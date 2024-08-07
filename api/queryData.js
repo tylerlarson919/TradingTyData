@@ -24,9 +24,16 @@ const intervalToMinutes = (interval) => {
   }
 };
 
-function getCsvFilePath(symbol) {
-  return path.join(CSV_FOLDER, `${symbol}.csv`);
+function getCsvFilePaths(symbol, startDate, endDate) {
+  const startYearMonth = format(startDate, 'yyyy-MM');
+  const endYearMonth = format(endDate, 'yyyy-MM');
+
+  const startFilePath = path.join(CSV_FOLDER, `${symbol}-${startYearMonth}.csv`);
+  const endFilePath = path.join(CSV_FOLDER, `${symbol}-${endYearMonth}.csv`);
+
+  return [startFilePath, endFilePath];
 }
+
 
 function getIntervalData(data, interval, startDate, endDate) {
   const intervalMinutes = intervalToMinutes(interval);
@@ -66,22 +73,28 @@ function getIntervalData(data, interval, startDate, endDate) {
 
 module.exports = async (req, res) => {
   try {
-    const { function: symbol, interval, startDate, endDate } = req.query;
+    const { symbol, interval, startDate, endDate } = req.query;
 
     if (!symbol || !interval || !startDate || !endDate) {
       return res.status(400).json({ error: 'Missing required query parameters' });
     }
 
-    const csvFilePath = getCsvFilePath(symbol);
-    if (!fs.existsSync(csvFilePath)) {
-      return res.status(404).json({ error: 'CSV file not found' });
-    }
-
-    const fileContent = fs.readFileSync(csvFilePath, 'utf8');
-    const records = parse(fileContent, { columns: true });
-
     const start = parseISO(startDate);
     const end = parseISO(endDate);
+
+    const csvFilePaths = getCsvFilePaths(symbol, start, end);
+
+    let records = [];
+    for (const csvFilePath of csvFilePaths) {
+      if (fs.existsSync(csvFilePath)) {
+        const fileContent = fs.readFileSync(csvFilePath, 'utf8');
+        records = records.concat(parse(fileContent, { columns: true }));
+      }
+    }
+
+    if (records.length === 0) {
+      return res.status(404).json({ error: 'CSV files not found for the given date range' });
+    }
 
     const intervalData = getIntervalData(records, interval, start, end);
 
@@ -101,6 +114,8 @@ module.exports = async (req, res) => {
       [`Time Series (${interval})`]: intervalData,
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error in queryData API:', error); // Log the error
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
