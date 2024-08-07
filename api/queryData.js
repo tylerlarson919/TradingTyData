@@ -94,7 +94,15 @@ module.exports = async (req, res) => {
       if (fs.existsSync(csvFilePath)) {
         console.log(`Reading CSV file: ${csvFilePath}`);
         const fileContent = fs.readFileSync(csvFilePath, 'utf8');
-        records = records.concat(parse(fileContent, { columns: true }));
+        // Update the CSV parsing logic to correctly interpret the timestamps
+        const parsedRecords = parse(fileContent, {
+          columns: ['timestamp', 'open', 'high', 'low', 'close', 'volume'],
+          skip_empty_lines: true,
+        }).map(record => ({
+          ...record,
+          timestamp: new Date(record.timestamp.replace(/(\d{4})(\d{2})(\d{2}) (\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z'))
+        }));
+        records = records.concat(parsedRecords);
       } else {
         console.log(`CSV file not found: ${csvFilePath}`);
       }
