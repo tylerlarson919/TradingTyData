@@ -31,9 +31,9 @@ function getCsvFilePaths(symbol, startDate, endDate) {
   const startFilePath = path.join(CSV_FOLDER, `${symbol}-${startYearMonth}.csv`);
   const endFilePath = path.join(CSV_FOLDER, `${symbol}-${endYearMonth}.csv`);
 
+  console.log(`CSV file paths: ${startFilePath}, ${endFilePath}`);
   return [startFilePath, endFilePath];
 }
-
 
 function getIntervalData(data, interval, startDate, endDate) {
   const intervalMinutes = intervalToMinutes(interval);
@@ -41,6 +41,8 @@ function getIntervalData(data, interval, startDate, endDate) {
     const timestamp = new Date(row.timestamp);
     return timestamp >= startDate && timestamp <= endDate;
   });
+
+  console.log(`Filtered data length: ${filteredData.length}`);
 
   const result = {};
   let lastDate = startDate;
@@ -75,6 +77,8 @@ module.exports = async (req, res) => {
   try {
     const { symbol, interval, startDate, endDate } = req.query;
 
+    console.log(`Received query params - symbol: ${symbol}, interval: ${interval}, startDate: ${startDate}, endDate: ${endDate}`);
+
     if (!symbol || !interval || !startDate || !endDate) {
       return res.status(400).json({ error: 'Missing required query parameters' });
     }
@@ -87,10 +91,15 @@ module.exports = async (req, res) => {
     let records = [];
     for (const csvFilePath of csvFilePaths) {
       if (fs.existsSync(csvFilePath)) {
+        console.log(`Reading CSV file: ${csvFilePath}`);
         const fileContent = fs.readFileSync(csvFilePath, 'utf8');
         records = records.concat(parse(fileContent, { columns: true }));
+      } else {
+        console.log(`CSV file not found: ${csvFilePath}`);
       }
     }
+
+    console.log(`Total records length: ${records.length}`);
 
     if (records.length === 0) {
       return res.status(404).json({ error: 'CSV files not found for the given date range' });
@@ -118,4 +127,3 @@ module.exports = async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
-
