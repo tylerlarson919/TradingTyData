@@ -80,6 +80,7 @@ module.exports = async (req, res) => {
     console.log(`Received query params - symbol: ${symbol}, interval: ${interval}, startDate: ${startDate}, endDate: ${endDate}`);
 
     if (!symbol || !interval || !startDate || !endDate) {
+      console.log('Missing required query parameters');
       return res.status(400).json({ error: 'Missing required query parameters' });
     }
 
@@ -102,15 +103,18 @@ module.exports = async (req, res) => {
     console.log(`Total records length: ${records.length}`);
 
     if (records.length === 0) {
+      console.log('CSV files not found for the given date range');
       return res.status(404).json({ error: 'CSV files not found for the given date range' });
     }
 
     const intervalData = getIntervalData(records, interval, start, end);
 
     if (!intervalData) {
+      console.log('Invalid date range');
       return res.status(400).json({ error: 'Invalid date range' });
     }
 
+    console.log('Returning interval data');
     res.json({
       'Meta Data': {
         '1. Information': `Intraday (${interval}) open, high, low, close prices and volume`,
