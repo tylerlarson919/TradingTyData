@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
-const { format, parseISO, addMinutes, subMinutes, startOfMonth, endOfMonth } = require('date-fns');
+const { format, parseISO, addMinutes } = require('date-fns');
 
 const CSV_FOLDER = './csvFiles';
 
@@ -56,6 +56,11 @@ function getIntervalData(data, interval, startDate, endDate) {
     }
     lastDate = addMinutes(lastDate, intervalMinutes);
   }
+
+  // Check if no data was found
+  if (Object.keys(result).length === 0) {
+    return null;
+  }
   return result;
 }
 
@@ -79,6 +84,10 @@ module.exports = async (req, res) => {
     const end = parseISO(endDate);
 
     const intervalData = getIntervalData(records, interval, start, end);
+
+    if (!intervalData) {
+      return res.status(400).json({ error: 'Invalid date range' });
+    }
 
     res.json({
       'Meta Data': {
