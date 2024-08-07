@@ -24,6 +24,7 @@ function processTextFile(filePath) {
     return;
   }
 
+  // Parse records from lines
   const records = lines.map(line => {
     const [timestamp, open, high, low, close, volume] = line.split(';');
     return { timestamp, open, high, low, close, volume };
@@ -32,26 +33,23 @@ function processTextFile(filePath) {
   // Extract the base name of the file without extension
   const baseName = path.basename(filePath, path.extname(filePath));
 
-  // Use a Set to track processed months to avoid redundant file writes
-  const processedMonths = new Set();
+  // Use a Map to keep track of records by month
+  const recordsByMonth = new Map();
 
   records.forEach(record => {
     const month = getMonthFromDate(record.timestamp);
-    if (!processedMonths.has(month)) {
-      processedMonths.add(month);
-      const csvFilePath = path.join(CSV_FOLDER, `${baseName}-${month}.csv`);
-      let existingRecords = [];
-      
-      if (fs.existsSync(csvFilePath)) {
-        const existingData = fs.readFileSync(csvFilePath, 'utf8');
-        existingRecords = parse(existingData, { columns: true });
-      }
-
-      const updatedRecords = [...existingRecords, record];
-      const csvData = stringify(updatedRecords, { header: true });
-      fs.writeFileSync(csvFilePath, csvData);
-      console.log(`Updated file: ${csvFilePath}`);
+    if (!recordsByMonth.has(month)) {
+      recordsByMonth.set(month, []);
     }
+    recordsByMonth.get(month).push(record);
+  });
+
+  // Write records to CSV files
+  recordsByMonth.forEach((records, month) => {
+    const csvFilePath = path.join(CSV_FOLDER, `${baseName}-${month}.csv`);
+    const csvData = stringify(records, { header: true });
+    fs.writeFileSync(csvFilePath, csvData);
+    console.log(`Written file: ${csvFilePath}`);
   });
 }
 
