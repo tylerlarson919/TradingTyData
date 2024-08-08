@@ -25,7 +25,7 @@ if (!admin.apps.length) {
   });
 }
 
-const bucket = admin.storage().bucket(); // Make sure this line is after admin initialization
+const bucket = admin.storage().bucket();
 
 // Interval conversion functions
 const intervalToMinutes = (interval) => {
@@ -52,7 +52,6 @@ function getCsvFilePaths(symbol, startDate, endDate) {
   const startFilePath = `${symbol}-${startYearMonth}.csv`;
   const endFilePath = `${symbol}-${endYearMonth}.csv`;
 
-  console.log(`CSV file paths: ${startFilePath}, ${endFilePath}`);
   return [startFilePath, endFilePath];
 }
 
@@ -60,7 +59,6 @@ async function getFileContent(filePath) {
   const file = bucket.file(filePath);
   const [exists] = await file.exists();
   if (!exists) {
-    console.log(`CSV file not found in Firebase Storage: ${filePath}`);
     return null;
   }
 
@@ -74,8 +72,6 @@ function getIntervalData(data, interval, startDate, endDate) {
     const timestamp = new Date(row.timestamp);
     return timestamp >= startDate && timestamp <= endDate;
   });
-
-  console.log(`Filtered data length: ${filteredData.length}`);
 
   const result = {};
   let lastDate = startDate;
@@ -99,7 +95,6 @@ function getIntervalData(data, interval, startDate, endDate) {
     lastDate = addMinutes(lastDate, intervalMinutes);
   }
 
-  // Check if no data was found
   if (Object.keys(result).length === 0) {
     return null;
   }
@@ -110,10 +105,7 @@ module.exports = async (req, res) => {
   try {
     const { symbol, interval, startDate, endDate } = req.query;
 
-    console.log(`Received query params - symbol: ${symbol}, interval: ${interval}, startDate: ${startDate}, endDate: ${endDate}`);
-
     if (!symbol || !interval || !startDate || !endDate) {
-      console.log('Missing required query parameters');
       return res.status(400).json({ error: 'Missing required query parameters' });
     }
 
@@ -126,8 +118,6 @@ module.exports = async (req, res) => {
     for (const csvFilePath of csvFilePaths) {
       const fileContent = await getFileContent(csvFilePath);
       if (fileContent) {
-        console.log(`Reading CSV file: ${csvFilePath}`);
-        // Update the CSV parsing logic to correctly interpret the timestamps
         const parsedRecords = parse(fileContent, {
           columns: ['timestamp', 'open', 'high', 'low', 'close', 'volume'],
           skip_empty_lines: true,
@@ -136,26 +126,24 @@ module.exports = async (req, res) => {
           timestamp: new Date(record.timestamp.replace(/(\d{4})(\d{2})(\d{2}) (\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z'))
         }));
         records = records.concat(parsedRecords);
-      } else {
-        console.log(`CSV file not found: ${csvFilePath}`);
       }
     }
 
-    console.log(`Total records length: ${records.length}`);
-
     if (records.length === 0) {
-      console.log('CSV files not found for the given date range');
       return res.status(404).json({ error: 'CSV files not found for the given date range' });
     }
 
     const intervalData = getIntervalData(records, interval, start, end);
 
     if (!intervalData) {
-      console.log('Invalid date range');
       return res.status(400).json({ error: 'Invalid date range' });
     }
 
-    console.log('Returning interval data');
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
     res.json({
       'Meta Data': {
         '1. Information': `Intraday (${interval}) open, high, low, close prices and volume`,
@@ -168,7 +156,6 @@ module.exports = async (req, res) => {
       [`Time Series (${interval})`]: intervalData,
     });
   } catch (error) {
-    console.error('Error in queryData API:', error); // Log the error
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
