@@ -1,8 +1,13 @@
+const express = require('express');
+const router = express.Router(); // Use Router here
 const admin = require('firebase-admin');
 const { parse } = require('csv-parse/sync');
 const { format, parseISO, addMinutes } = require('date-fns');
 
-// Initialize Firebase Admin
+// CORS Middleware
+// (Note: CORS middleware is not needed here if already in `server.js`)
+
+// Firebase Admin Initialization
 const serviceAccount = {
   type: 'service_account',
   project_id: process.env.FIREBASE_PROJECT_ID,
@@ -27,6 +32,7 @@ if (!admin.apps.length) {
 
 const bucket = admin.storage().bucket();
 
+// Helper Functions
 const intervalToMinutes = (interval) => {
   switch (interval) {
     case '1m': return 1;
@@ -104,7 +110,8 @@ function getIntervalData(data, interval, startDate, endDate) {
   return result;
 }
 
-module.exports = async (req, res) => {
+// API Route
+router.get('/config', async (req, res) => {
   try {
     const { symbol, interval, startDate, endDate } = req.query;
 
@@ -112,7 +119,6 @@ module.exports = async (req, res) => {
 
     if (!symbol || !interval || !startDate || !endDate) {
       console.log('Missing required query parameters');
-      res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins for CORS
       return res.status(400).json({ error: 'Missing required query parameters' });
     }
 
@@ -143,7 +149,6 @@ module.exports = async (req, res) => {
 
     if (records.length === 0) {
       console.log('CSV files not found for the given date range');
-      res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins for CORS
       return res.status(404).json({ error: 'CSV files not found for the given date range' });
     }
 
@@ -151,12 +156,10 @@ module.exports = async (req, res) => {
 
     if (!intervalData) {
       console.log('Invalid date range');
-      res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins for CORS
       return res.status(400).json({ error: 'Invalid date range' });
     }
 
     console.log('Returning interval data');
-    res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins for CORS
     res.json({
       'Meta Data': {
         '1. Information': `Intraday (${interval}) open, high, low, close prices and volume`,
@@ -170,7 +173,8 @@ module.exports = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in queryData API:', error);
-    res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins for CORS
     res.status(500).json({ error: 'Internal Server Error' });
   }
-};
+});
+
+module.exports = router; // Export the router
