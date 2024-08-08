@@ -1,11 +1,8 @@
 const express = require('express');
-const router = express.Router(); // Use Router here
+const router = express.Router();
 const admin = require('firebase-admin');
 const { parse } = require('csv-parse/sync');
 const { format, parseISO, addMinutes } = require('date-fns');
-
-// CORS Middleware
-// (Note: CORS middleware is not needed here if already in `server.js`)
 
 // Firebase Admin Initialization
 const serviceAccount = {
@@ -177,4 +174,4 @@ router.get('/config', async (req, res) => {
   }
 });
 
-module.exports = router; // Export the router
+module.exports = router;

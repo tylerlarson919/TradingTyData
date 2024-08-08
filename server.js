@@ -1,8 +1,9 @@
-//server.js
-
 const express = require('express');
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Middleware to parse JSON bodies
+app.use(express.json());
 
 // Middleware for CORS
 app.use((req, res, next) => {
@@ -12,11 +13,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware for parsing JSON bodies
-app.use(express.json());
-
-// Use the queryData routes
-app.use('/api/queryData', require('./queryData'));
+// Import and use routes
+const queryDataRouter = require('./queryData');
+app.use('/api/queryData', queryDataRouter);
 
 // Start the server
 app.listen(port, () => {
