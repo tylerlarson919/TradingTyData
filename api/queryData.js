@@ -1,33 +1,10 @@
 const functions = require('firebase-functions');
-const cors = require('cors')({ origin: true });
 const admin = require('firebase-admin');
 const { parse } = require('csv-parse/sync');
 const { format, parseISO, addMinutes } = require('date-fns');
 
 // Initialize Firebase Admin
-const serviceAccount = {
-  type: 'service_account',
-  project_id: process.env.FIREBASE_PROJECT_ID,
-  private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
-  private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-  client_email: process.env.FIREBASE_CLIENT_EMAIL,
-  client_id: process.env.GOOGLE_CLIENT_ID,
-  auth_uri: process.env.GOOGLE_AUTH_URI,
-  token_uri: process.env.GOOGLE_TOKEN_URI,
-  auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
-  client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${process.env.FIREBASE_CLIENT_EMAIL.replace(/@.*/, '')}`
-};
-
-const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
-
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: storageBucket,
-  });
-}
-
-const bucket = admin.storage().bucket();
+admin.initializeApp();
 
 // Interval conversion functions
 const intervalToMinutes = (interval) => {
@@ -58,6 +35,7 @@ function getCsvFilePaths(symbol, startDate, endDate) {
 }
 
 async function getFileContent(filePath) {
+  const bucket = admin.storage().bucket();
   const file = bucket.file(filePath);
   const [exists] = await file.exists();
   if (!exists) {
@@ -103,59 +81,58 @@ function getIntervalData(data, interval, startDate, endDate) {
   return result;
 }
 
-// Replace 'yourFunctionName' with the actual name of your function
-exports.getStockData = functions.https.onRequest((req, res) => {
-  cors(req, res, async () => {
-    try {
-      const { symbol, interval, startDate, endDate } = req.query;
+// Exported function for querying stock data
+exports.getStockData = functions.https.onRequest(async (req, res) => {
+  try {
+    const { symbol, interval, startDate, endDate } = req.query;
 
-      if (!symbol || !interval || !startDate || !endDate) {
-        return res.status(400).json({ error: 'Missing required query parameters' });
-      }
-
-      const start = parseISO(startDate);
-      const end = parseISO(endDate);
-
-      const csvFilePaths = getCsvFilePaths(symbol, start, end);
-
-      let records = [];
-      for (const csvFilePath of csvFilePaths) {
-        const fileContent = await getFileContent(csvFilePath);
-        if (fileContent) {
-          const parsedRecords = parse(fileContent, {
-            columns: ['timestamp', 'open', 'high', 'low', 'close', 'volume'],
-            skip_empty_lines: true,
-          }).map(record => ({
-            ...record,
-            timestamp: new Date(record.timestamp.replace(/(\d{4})(\d{2})(\d{2}) (\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z'))
-          }));
-          records = records.concat(parsedRecords);
-        }
-      }
-
-      if (records.length === 0) {
-        return res.status(404).json({ error: 'CSV files not found for the given date range' });
-      }
-
-      const intervalData = getIntervalData(records, interval, start, end);
-
-      if (!intervalData) {
-        return res.status(400).json({ error: 'Invalid date range' });
-      }
-
-      res.json({
-        'Meta Data': {
-          '1. Information': `Intraday (${interval}) open, high, low, close prices and volume`,
-          '2. Symbol': symbol,
-          '3. Last Refreshed': endDate,
-          '4. Interval': interval,
-          '5. Output Size': 'Full size',
-          '6. Time Zone': 'US/Eastern',
-        },
-        [`Time Series (${interval})`]: intervalData,
-      });
-    } catch (error) {
-      res.status(500).json({ error: 'Internal Server Error' });
+    if (!symbol || !interval || !startDate || !endDate) {
+      return res.status(400).json({ error: 'Missing required query parameters' });
     }
-  });
+
+    const start = parseISO(startDate);
+    const end = parseISO(endDate);
+
+    const csvFilePaths = getCsvFilePaths(symbol, start, end);
+
+    let records = [];
+    for (const csvFilePath of csvFilePaths) {
+      const fileContent = await getFileContent(csvFilePath);
+      if (fileContent) {
+        const parsedRecords = parse(fileContent, {
+          columns: ['timestamp', 'open', 'high', 'low', 'close', 'volume'],
+          skip_empty_lines: true,
+        }).map(record => ({
+          ...record,
+          timestamp: new Date(record.timestamp.replace(/(\d{4})(\d{2})(\d{2}) (\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z'))
+        }));
+        records = records.concat(parsedRecords);
+      }
+    }
+
+    if (records.length === 0) {
+      return res.status(404).json({ error: 'CSV files not found for the given date range' });
+    }
+
+    const intervalData = getIntervalData(records, interval, start, end);
+
+    if (!intervalData) {
+      return res.status(400).json({ error: 'Invalid date range' });
+    }
+
+    res.json({
+      'Meta Data': {
+        '1. Information': `Intraday (${interval}) open, high, low, close prices and volume`,
+        '2. Symbol': symbol,
+        '3. Last Refreshed': endDate,
+        '4. Interval': interval,
+        '5. Output Size': 'Full size',
+        '6. Time Zone': 'US/Eastern',
+      },
+      [`Time Series (${interval})`]: intervalData,
+    });
+  } catch (error) {
+    console.error('Error fetching stock data:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
