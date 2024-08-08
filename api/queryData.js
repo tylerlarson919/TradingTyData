@@ -1,10 +1,31 @@
-const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const { parse } = require('csv-parse/sync');
 const { format, parseISO, addMinutes } = require('date-fns');
 
 // Initialize Firebase Admin
-admin.initializeApp();
+const serviceAccount = {
+  type: 'service_account',
+  project_id: process.env.FIREBASE_PROJECT_ID,
+  private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
+  private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+  client_email: process.env.FIREBASE_CLIENT_EMAIL,
+  client_id: process.env.GOOGLE_CLIENT_ID,
+  auth_uri: process.env.GOOGLE_AUTH_URI,
+  token_uri: process.env.GOOGLE_TOKEN_URI,
+  auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
+  client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${process.env.FIREBASE_CLIENT_EMAIL.replace(/@.*/, '')}`
+};
+
+const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    storageBucket: storageBucket,
+  });
+}
+
+const bucket = admin.storage().bucket();
 
 // Interval conversion functions
 const intervalToMinutes = (interval) => {
@@ -35,7 +56,6 @@ function getCsvFilePaths(symbol, startDate, endDate) {
 }
 
 async function getFileContent(filePath) {
-  const bucket = admin.storage().bucket();
   const file = bucket.file(filePath);
   const [exists] = await file.exists();
   if (!exists) {
@@ -81,8 +101,7 @@ function getIntervalData(data, interval, startDate, endDate) {
   return result;
 }
 
-// Exported function for querying stock data
-exports.getStockData = functions.https.onRequest(async (req, res) => {
+module.exports = async (req, res) => {
   try {
     const { symbol, interval, startDate, endDate } = req.query;
 
@@ -120,6 +139,11 @@ exports.getStockData = functions.https.onRequest(async (req, res) => {
       return res.status(400).json({ error: 'Invalid date range' });
     }
 
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
     res.json({
       'Meta Data': {
         '1. Information': `Intraday (${interval}) open, high, low, close prices and volume`,
@@ -132,7 +156,6 @@ exports.getStockData = functions.https.onRequest(async (req, res) => {
       [`Time Series (${interval})`]: intervalData,
     });
   } catch (error) {
-    console.error('Error fetching stock data:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
-});
+};
