@@ -103,7 +103,8 @@ function getIntervalData(data, interval, startDate, endDate) {
   return result;
 }
 
-exports.yourFunctionName = functions.https.onRequest((req, res) => {
+// Replace 'yourFunctionName' with the actual name of your function
+exports.getStockData = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
     try {
       const { symbol, interval, startDate, endDate } = req.query;
