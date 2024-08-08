@@ -13,7 +13,7 @@ const serviceAccount = {
   auth_uri: process.env.GOOGLE_AUTH_URI,
   token_uri: process.env.GOOGLE_TOKEN_URI,
   auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
-  client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-pdm6x%40tradingtystockdata.iam.gserviceaccount.com`
+  client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${process.env.FIREBASE_CLIENT_EMAIL.replace(/@.*/, '')}`
 };
 
 const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
@@ -24,7 +24,8 @@ if (!admin.apps.length) {
     storageBucket: storageBucket,
   });
 }
-const bucket = admin.storage().bucket();
+
+const bucket = admin.storage().bucket(); // Make sure this line is after admin initialization
 
 // Interval conversion functions
 const intervalToMinutes = (interval) => {
