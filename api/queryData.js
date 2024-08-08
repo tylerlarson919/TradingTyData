@@ -1,3 +1,5 @@
+const functions = require('firebase-functions');
+const cors = require('cors')({ origin: true });
 const admin = require('firebase-admin');
 const { parse } = require('csv-parse/sync');
 const { format, parseISO, addMinutes } = require('date-fns');
@@ -101,61 +103,58 @@ function getIntervalData(data, interval, startDate, endDate) {
   return result;
 }
 
-module.exports = async (req, res) => {
-  try {
-    const { symbol, interval, startDate, endDate } = req.query;
+exports.yourFunctionName = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    try {
+      const { symbol, interval, startDate, endDate } = req.query;
 
-    if (!symbol || !interval || !startDate || !endDate) {
-      return res.status(400).json({ error: 'Missing required query parameters' });
-    }
-
-    const start = parseISO(startDate);
-    const end = parseISO(endDate);
-
-    const csvFilePaths = getCsvFilePaths(symbol, start, end);
-
-    let records = [];
-    for (const csvFilePath of csvFilePaths) {
-      const fileContent = await getFileContent(csvFilePath);
-      if (fileContent) {
-        const parsedRecords = parse(fileContent, {
-          columns: ['timestamp', 'open', 'high', 'low', 'close', 'volume'],
-          skip_empty_lines: true,
-        }).map(record => ({
-          ...record,
-          timestamp: new Date(record.timestamp.replace(/(\d{4})(\d{2})(\d{2}) (\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z'))
-        }));
-        records = records.concat(parsedRecords);
+      if (!symbol || !interval || !startDate || !endDate) {
+        return res.status(400).json({ error: 'Missing required query parameters' });
       }
+
+      const start = parseISO(startDate);
+      const end = parseISO(endDate);
+
+      const csvFilePaths = getCsvFilePaths(symbol, start, end);
+
+      let records = [];
+      for (const csvFilePath of csvFilePaths) {
+        const fileContent = await getFileContent(csvFilePath);
+        if (fileContent) {
+          const parsedRecords = parse(fileContent, {
+            columns: ['timestamp', 'open', 'high', 'low', 'close', 'volume'],
+            skip_empty_lines: true,
+          }).map(record => ({
+            ...record,
+            timestamp: new Date(record.timestamp.replace(/(\d{4})(\d{2})(\d{2}) (\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6Z'))
+          }));
+          records = records.concat(parsedRecords);
+        }
+      }
+
+      if (records.length === 0) {
+        return res.status(404).json({ error: 'CSV files not found for the given date range' });
+      }
+
+      const intervalData = getIntervalData(records, interval, start, end);
+
+      if (!intervalData) {
+        return res.status(400).json({ error: 'Invalid date range' });
+      }
+
+      res.json({
+        'Meta Data': {
+          '1. Information': `Intraday (${interval}) open, high, low, close prices and volume`,
+          '2. Symbol': symbol,
+          '3. Last Refreshed': endDate,
+          '4. Interval': interval,
+          '5. Output Size': 'Full size',
+          '6. Time Zone': 'US/Eastern',
+        },
+        [`Time Series (${interval})`]: intervalData,
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' });
     }
-
-    if (records.length === 0) {
-      return res.status(404).json({ error: 'CSV files not found for the given date range' });
-    }
-
-    const intervalData = getIntervalData(records, interval, start, end);
-
-    if (!intervalData) {
-      return res.status(400).json({ error: 'Invalid date range' });
-    }
-
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    res.json({
-      'Meta Data': {
-        '1. Information': `Intraday (${interval}) open, high, low, close prices and volume`,
-        '2. Symbol': symbol,
-        '3. Last Refreshed': endDate,
-        '4. Interval': interval,
-        '5. Output Size': 'Full size',
-        '6. Time Zone': 'US/Eastern',
-      },
-      [`Time Series (${interval})`]: intervalData,
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-};
+  });
+});
