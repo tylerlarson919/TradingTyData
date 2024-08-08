@@ -6,8 +6,5 @@
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/$1.js" },
     { "src": "/csvFiles/(.*)", "dest": "/csvFiles/$1" }
-  ],
-  "static": {
-    "directory": "csvFiles"
-  }
+  ]
 }
