@@ -17,6 +17,12 @@ app.use((req, res, next) => {
 const queryDataRouter = require('./queryData');
 app.use('/api/queryData', queryDataRouter);
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({ error: 'Internal Server Error' });
+});
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
