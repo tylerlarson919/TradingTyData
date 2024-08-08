@@ -1,10 +1,19 @@
 // api/queryData.js
-const fs = require('fs');
-const path = require('path');
+const admin = require('firebase-admin');
 const { parse } = require('csv-parse/sync');
 const { format, parseISO, addMinutes } = require('date-fns');
 
-const CSV_FOLDER = './csvFiles';
+// Initialize Firebase Admin
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    storageBucket: storageBucket,
+  });
+}
+const bucket = admin.storage().bucket();
 
 // Interval conversion functions
 const intervalToMinutes = (interval) => {
@@ -28,11 +37,23 @@ function getCsvFilePaths(symbol, startDate, endDate) {
   const startYearMonth = format(startDate, 'yyyy-MM');
   const endYearMonth = format(endDate, 'yyyy-MM');
 
-  const startFilePath = path.join(CSV_FOLDER, `${symbol}-${startYearMonth}.csv`);
-  const endFilePath = path.join(CSV_FOLDER, `${symbol}-${endYearMonth}.csv`);
+  const startFilePath = `${symbol}-${startYearMonth}.csv`;
+  const endFilePath = `${symbol}-${endYearMonth}.csv`;
 
   console.log(`CSV file paths: ${startFilePath}, ${endFilePath}`);
   return [startFilePath, endFilePath];
+}
+
+async function getFileContent(filePath) {
+  const file = bucket.file(filePath);
+  const [exists] = await file.exists();
+  if (!exists) {
+    console.log(`CSV file not found in Firebase Storage: ${filePath}`);
+    return null;
+  }
+
+  const [contents] = await file.download();
+  return contents.toString('utf8');
 }
 
 function getIntervalData(data, interval, startDate, endDate) {
@@ -91,9 +112,9 @@ module.exports = async (req, res) => {
 
     let records = [];
     for (const csvFilePath of csvFilePaths) {
-      if (fs.existsSync(csvFilePath)) {
+      const fileContent = await getFileContent(csvFilePath);
+      if (fileContent) {
         console.log(`Reading CSV file: ${csvFilePath}`);
-        const fileContent = fs.readFileSync(csvFilePath, 'utf8');
         // Update the CSV parsing logic to correctly interpret the timestamps
         const parsedRecords = parse(fileContent, {
           columns: ['timestamp', 'open', 'high', 'low', 'close', 'volume'],
