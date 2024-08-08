@@ -1,10 +1,8 @@
-const express = require('express');
-const router = express.Router();
 const admin = require('firebase-admin');
 const { parse } = require('csv-parse/sync');
 const { format, parseISO, addMinutes } = require('date-fns');
 
-// Firebase Admin Initialization
+// Initialize Firebase Admin
 const serviceAccount = {
   type: 'service_account',
   project_id: process.env.FIREBASE_PROJECT_ID,
@@ -27,9 +25,9 @@ if (!admin.apps.length) {
   });
 }
 
-const bucket = admin.storage().bucket();
+const bucket = admin.storage().bucket(); // Make sure this line is after admin initialization
 
-// Helper Functions
+// Interval conversion functions
 const intervalToMinutes = (interval) => {
   switch (interval) {
     case '1m': return 1;
@@ -101,14 +99,14 @@ function getIntervalData(data, interval, startDate, endDate) {
     lastDate = addMinutes(lastDate, intervalMinutes);
   }
 
+  // Check if no data was found
   if (Object.keys(result).length === 0) {
     return null;
   }
   return result;
 }
 
-// API Route
-router.get('/', async (req, res) => {
+module.exports = async (req, res) => {
   try {
     const { symbol, interval, startDate, endDate } = req.query;
 
@@ -129,6 +127,7 @@ router.get('/', async (req, res) => {
       const fileContent = await getFileContent(csvFilePath);
       if (fileContent) {
         console.log(`Reading CSV file: ${csvFilePath}`);
+        // Update the CSV parsing logic to correctly interpret the timestamps
         const parsedRecords = parse(fileContent, {
           columns: ['timestamp', 'open', 'high', 'low', 'close', 'volume'],
           skip_empty_lines: true,
@@ -169,9 +168,7 @@ router.get('/', async (req, res) => {
       [`Time Series (${interval})`]: intervalData,
     });
   } catch (error) {
-    console.error('Error in queryData API:', error);
+    console.error('Error in queryData API:', error); // Log the error
     res.status(500).json({ error: 'Internal Server Error' });
   }
-});
-
-module.exports = router;
+};
