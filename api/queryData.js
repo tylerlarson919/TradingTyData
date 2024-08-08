@@ -108,6 +108,16 @@ function getIntervalData(data, interval, startDate, endDate) {
 
 module.exports = async (req, res) => {
   try {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins, or specify your frontend domain
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    // Handle OPTIONS request (CORS preflight)
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
     const { symbol, interval, startDate, endDate } = req.query;
 
     console.log(`Received query params - symbol: ${symbol}, interval: ${interval}, startDate: ${startDate}, endDate: ${endDate}`);
