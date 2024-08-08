@@ -5,7 +5,7 @@ const port = process.env.PORT || 3000;
 // Middleware to parse JSON bodies
 app.use(express.json());
 
-// Middleware for CORS
+// CORS middleware
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -13,7 +13,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Import and use routes
+// Route handling
 const queryDataRouter = require('./api/queryData');
 app.use('/api/queryData', queryDataRouter);
 
