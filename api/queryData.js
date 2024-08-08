@@ -25,9 +25,8 @@ if (!admin.apps.length) {
   });
 }
 
-const bucket = admin.storage().bucket(); // Make sure this line is after admin initialization
+const bucket = admin.storage().bucket();
 
-// Interval conversion functions
 const intervalToMinutes = (interval) => {
   switch (interval) {
     case '1m': return 1;
@@ -99,7 +98,6 @@ function getIntervalData(data, interval, startDate, endDate) {
     lastDate = addMinutes(lastDate, intervalMinutes);
   }
 
-  // Check if no data was found
   if (Object.keys(result).length === 0) {
     return null;
   }
@@ -108,22 +106,13 @@ function getIntervalData(data, interval, startDate, endDate) {
 
 module.exports = async (req, res) => {
   try {
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins, or specify your frontend domain
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-    // Handle OPTIONS request (CORS preflight)
-    if (req.method === 'OPTIONS') {
-      return res.status(200).end();
-    }
-
     const { symbol, interval, startDate, endDate } = req.query;
 
     console.log(`Received query params - symbol: ${symbol}, interval: ${interval}, startDate: ${startDate}, endDate: ${endDate}`);
 
     if (!symbol || !interval || !startDate || !endDate) {
       console.log('Missing required query parameters');
+      res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins for CORS
       return res.status(400).json({ error: 'Missing required query parameters' });
     }
 
@@ -137,7 +126,6 @@ module.exports = async (req, res) => {
       const fileContent = await getFileContent(csvFilePath);
       if (fileContent) {
         console.log(`Reading CSV file: ${csvFilePath}`);
-        // Update the CSV parsing logic to correctly interpret the timestamps
         const parsedRecords = parse(fileContent, {
           columns: ['timestamp', 'open', 'high', 'low', 'close', 'volume'],
           skip_empty_lines: true,
@@ -155,6 +143,7 @@ module.exports = async (req, res) => {
 
     if (records.length === 0) {
       console.log('CSV files not found for the given date range');
+      res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins for CORS
       return res.status(404).json({ error: 'CSV files not found for the given date range' });
     }
 
@@ -162,10 +151,12 @@ module.exports = async (req, res) => {
 
     if (!intervalData) {
       console.log('Invalid date range');
+      res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins for CORS
       return res.status(400).json({ error: 'Invalid date range' });
     }
 
     console.log('Returning interval data');
+    res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins for CORS
     res.json({
       'Meta Data': {
         '1. Information': `Intraday (${interval}) open, high, low, close prices and volume`,
@@ -178,7 +169,8 @@ module.exports = async (req, res) => {
       [`Time Series (${interval})`]: intervalData,
     });
   } catch (error) {
-    console.error('Error in queryData API:', error); // Log the error
+    console.error('Error in queryData API:', error);
+    res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins for CORS
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
