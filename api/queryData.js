@@ -108,7 +108,7 @@ function getIntervalData(data, interval, startDate, endDate) {
 }
 
 // API Route
-router.get('/config', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { symbol, interval, startDate, endDate } = req.query;
 
