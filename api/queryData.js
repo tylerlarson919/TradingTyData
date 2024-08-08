@@ -4,12 +4,16 @@ const { parse } = require('csv-parse/sync');
 const { format, parseISO, addMinutes } = require('date-fns');
 
 // Initialize Firebase Admin
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
+if (!serviceAccount) {
+  throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set');
+}
+const serviceAccountParsed = JSON.parse(serviceAccount);
 const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
 
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
+    credential: admin.credential.cert(serviceAccountParsed),
     storageBucket: storageBucket,
   });
 }
