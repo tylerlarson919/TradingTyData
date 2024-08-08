@@ -3,9 +3,9 @@
   "builds": [
     { "src": "api/**/*.js", "use": "@vercel/node" }
   ],
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1.js" },
-    { "src": "/csvFiles/(.*)", "dest": "/csvFiles/$1" }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1.js" },
+    { "source": "/csvFiles/(.*)", "destination": "/csvFiles/$1" }
   ],
   "headers": [
     {
