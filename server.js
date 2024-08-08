@@ -14,7 +14,7 @@ app.use((req, res, next) => {
 });
 
 // Import and use routes
-const queryDataRouter = require('./queryData');
+const queryDataRouter = require('./api/queryData');
 app.use('/api/queryData', queryDataRouter);
 
 // Error handling middleware
