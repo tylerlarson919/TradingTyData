@@ -1,3 +1,5 @@
+//server.js
+
 const express = require('express');
 const app = express();
 const port = process.env.PORT || 3000;
@@ -10,8 +12,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Middleware for parsing JSON bodies
+app.use(express.json());
+
 // Use the queryData routes
-app.use('/api/queryData', require('./api/queryData'));
+app.use('/api/queryData', require('./queryData'));
 
 // Start the server
 app.listen(port, () => {
